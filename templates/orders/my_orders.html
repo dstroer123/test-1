@@ -1,0 +1,392 @@
+
+{% extends "base.html" %}
+
+{% block title %}Мои заказы{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+        <div>
+            <h1 class="h2 mb-1">Мои заказы</h1>
+            <p class="text-muted mb-0">
+                Информация о перевозках и состоянии заказов
+            </p>
+        </div>
+
+        <a href="{% url 'create_order' %}" class="btn btn-primary">
+            + Создать заказ
+        </a>
+    </div>
+
+    {% if orders %}
+        <div class="row g-4">
+            {% for order in orders %}
+                <div class="col-12">
+                    <div class="card shadow-sm border-0">
+
+                        <div class="card-header bg-light py-3">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                <h2 class="h5 mb-0">
+                                    Заказ №{{ order.id }}
+                                </h2>
+
+                                <span class="badge
+                                    {% if order.status == 'completed' %}
+                                        bg-success
+                                    {% elif order.status == 'rejected' or order.status == 'cancelled' %}
+                                        bg-danger
+                                    {% elif order.status == 'offered' or order.status == 'accepted' %}
+                                        bg-primary
+                                    {% else %}
+                                        bg-secondary
+                                    {% endif %}
+                                ">
+                                    {{ order.get_status_display }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="card-body p-4">
+
+                            <h3 class="h5 mb-3">
+                                {{ order.origin }} → {{ order.destination }}
+                            </h3>
+
+                            <div class="row g-3">
+
+                                <div class="col-md-6">
+                                    <h4 class="h6 text-muted">
+                                        Информация о грузе
+                                    </h4>
+
+                                    <p class="mb-2">
+                                        <strong>Название:</strong>
+                                        {{ order.cargo_name }}
+                                    </p>
+
+                                    <p class="mb-2">
+                                        <strong>Тип груза:</strong>
+                                        {{ order.cargo_type }}
+                                    </p>
+
+                                    <p class="mb-2">
+                                        <strong>Вес:</strong>
+                                        {{ order.cargo_weight }} т
+                                    </p>
+
+                                    <p class="mb-2">
+                                        <strong>Попутный груз:</strong>
+                                        {% if order.allow_shared_cargo %}
+                                            Разрешён
+                                        {% else %}
+                                            Запрещён
+                                        {% endif %}
+                                    </p>
+
+                                    <p class="mb-2">
+                                        <strong>Компания:</strong>
+                                        {{ order.company.name }}
+                                    </p>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <h4 class="h6 text-muted">
+                                        Данные перевозки
+                                    </h4>
+
+                                    <p class="mb-2">
+                                        <strong>Расстояние:</strong>
+                                        {% if order.distance_km != None %}
+                                            {{ order.distance_km }} км
+                                        {% else %}
+                                            Не рассчитано
+                                        {% endif %}
+                                    </p>
+
+                                    <p class="mb-2">
+                                        <strong>Примерное время:</strong>
+                                        {% if order.estimated_time_hours != None %}
+                                            {{ order.estimated_time_hours }} ч
+                                        {% else %}
+                                            Не рассчитано
+                                        {% endif %}
+                                    </p>
+
+                                    <p class="mb-2">
+                                        <strong>Автомобиль:</strong>
+                                        {% if order.vehicle %}
+                                            {{ order.vehicle.brand }}
+                                            {{ order.vehicle.model }}
+                                            ({{ order.vehicle.plate_number }})
+                                        {% else %}
+                                            Не назначен
+                                        {% endif %}
+                                    </p>
+
+                                    <p class="mb-2">
+                                        <strong>Водитель:</strong>
+                                        {% if order.driver %}
+                                            {{ order.driver.first_name }}
+                                            {{ order.driver.last_name }}
+                                        {% else %}
+                                            Не назначен
+                                        {% endif %}
+                                    </p>
+                                </div>
+
+                            </div>
+
+                            <hr>
+
+                            <div class="row g-3">
+
+                                <div class="col-md-6">
+                                    <p class="mb-1 text-muted">
+                                        Предварительная стоимость
+                                    </p>
+
+                                    <div class="fs-4 fw-bold">
+                                        {% if order.estimated_price != None %}
+                                            {{ order.estimated_price }} ₸
+                                        {% else %}
+                                            Не рассчитана
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <p class="mb-1 text-muted">
+                                        Итоговая стоимость
+                                    </p>
+
+                                    <div class="fs-4 fw-bold">
+                                        {% if order.final_price != None %}
+                                            {{ order.final_price }} ₸
+                                        {% else %}
+                                            Пока не определена
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                            </div>
+
+                            {% if order.route_geometry %}
+                                <hr>
+
+                                <h4 class="h6 mb-3">
+                                    Маршрут перевозки
+                                </h4>
+
+                                <div
+                                    id="route-map-{{ order.id }}"
+                                    class="route-map rounded border"
+                                    data-route="{{ order.route_geometry_json|escape }}"
+                                    style="height: 350px; width: 100%;"
+                                ></div>
+                            {% endif %}
+
+                            {% if order.status == 'offered' %}
+                                <hr>
+
+                                <div class="alert alert-info">
+                                    <strong>Предложение готово.</strong>
+                                    Проверьте стоимость, время и назначенный транспорт.
+                                </div>
+
+                                <div class="d-flex flex-wrap gap-2">
+
+                                    <form
+                                        method="post"
+                                        action="{% url 'respond_to_offer' order.id %}"
+                                    >
+                                        {% csrf_token %}
+
+                                        <input
+                                            type="hidden"
+                                            name="decision"
+                                            value="accept"
+                                        >
+
+                                        <button
+                                            type="submit"
+                                            class="btn btn-success"
+                                        >
+                                            Принять предложение
+                                        </button>
+                                    </form>
+
+                                    <form
+                                        method="post"
+                                        action="{% url 'respond_to_offer' order.id %}"
+                                    >
+                                        {% csrf_token %}
+
+                                        <input
+                                            type="hidden"
+                                            name="decision"
+                                            value="reject"
+                                        >
+
+                                        <button
+                                            type="submit"
+                                            class="btn btn-outline-danger"
+                                        >
+                                            Отклонить
+                                        </button>
+                                    </form>
+
+                                </div>
+
+                            {% elif order.status == 'accepted' %}
+                                <div class="alert alert-success mt-3 mb-0">
+                                    Вы приняли предложение.
+                                    Ожидайте дальнейшей информации о перевозке.
+                                </div>
+
+                            {% elif order.status == 'rejected' %}
+                                <div class="alert alert-danger mt-3 mb-0">
+                                    Предложение отклонено.
+                                </div>
+                            {% endif %}
+
+                            <div class="text-muted small mt-3">
+                                Создан:
+                                {{ order.created_at|date:"d.m.Y H:i" }}
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+    {% else %}
+        <div class="alert alert-secondary">
+            <h2 class="h5">Заказов пока нет</h2>
+
+            <p class="mb-3">
+                Создайте первый заказ, чтобы рассчитать маршрут
+                и стоимость перевозки.
+            </p>
+
+            <a href="{% url 'create_order' %}" class="btn btn-primary">
+                Создать первый заказ
+            </a>
+        </div>
+    {% endif %}
+
+</div>
+
+{# Подключаем Leaflet один раз на этой странице. #}
+<link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+(function () {
+    function buildMap(element) {
+        if (element._leaflet_id) return;
+
+        let geometry;
+        try {
+            geometry = JSON.parse(element.dataset.route || "{}");
+        } catch (error) {
+            console.error("Ошибка чтения маршрута:", element.id, error);
+            element.textContent = "Не удалось прочитать маршрут.";
+            return;
+        }
+
+        const coords = geometry && geometry.coordinates;
+        if (!Array.isArray(coords) || coords.length === 0) {
+            element.textContent = "Нет координат маршрута.";
+            return;
+        }
+
+        // Оставляем только корректные пары [lng, lat]
+        const clean = coords.filter(function (c) {
+            return Array.isArray(c) &&
+                   isFinite(parseFloat(c[0])) &&
+                   isFinite(parseFloat(c[1]));
+        }).map(function (c) {
+            return [parseFloat(c[0]), parseFloat(c[1])];
+        });
+
+        if (clean.length === 0) {
+            element.textContent = "Координаты маршрута некорректны.";
+            return;
+        }
+
+        try {
+            const map = L.map(element);
+
+            L.tileLayer(
+    "https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_4k1y_1_2d0af86c0d2412657a605172",
+    {
+        attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        maxZoom: 20
+    }
+).addTo(map);
+                {
+                    attribution:
+                        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                    subdomains: "abcd",
+                    maxZoom: 20
+                }
+            ).on("tileerror", function (e) {
+                console.warn("Тайл не загрузился:", e.tile && e.tile.src);
+            }).addTo(map);
+
+            const route = L.geoJSON(
+                { type: "LineString", coordinates: clean },
+                { style: { color: "#0d6efd", weight: 5 } }
+            ).addTo(map);
+
+            map.fitBounds(route.getBounds(), { padding: [20, 20] });
+
+            requestAnimationFrame(function () { map.invalidateSize(); });
+        } catch (error) {
+            console.error("Ошибка отображения маршрута:", element.id, error);
+        }
+    }
+
+    function initializeRouteMaps() {
+        if (typeof L === "undefined") {
+            console.error("Leaflet не загружен.");
+            return;
+        }
+
+        document.querySelectorAll(".route-map").forEach(function (element) {
+            if (element._leaflet_id) return;
+
+            if (element.clientWidth > 0 && element.clientHeight > 0) {
+                buildMap(element);
+                return;
+            }
+
+            // Контейнер скрыт или без размера: ждём, пока он появится
+            if ("ResizeObserver" in window) {
+                const ro = new ResizeObserver(function () {
+                    if (element.clientWidth > 0 && element.clientHeight > 0) {
+                        ro.disconnect();
+                        buildMap(element);
+                    }
+                });
+                ro.observe(element);
+            }
+        });
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initializeRouteMaps, { once: true });
+    } else {
+        initializeRouteMaps();
+    }
+})();
+</script>
+
+{% endblock %}
